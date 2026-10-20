@@ -108,68 +108,92 @@ class _ReaderScreenState extends State<ReaderScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
     return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      backgroundColor: cs.surface,
+      body: SafeArea(
+        child: Column(
           children: [
-            Text(p.basenameWithoutExtension(_path),
-                maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleMedium),
-            Text('${_i + 1} de ${_paths.length} · ${_ext.substring(1).toUpperCase()}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
-          ],
-        ),
-        actions: [
-          if (_ext != '.pdf')
-            IconButton(icon: const Icon(Icons.text_fields_rounded), tooltip: 'Texto', onPressed: _fontSheet),
-          IconButton(icon: const Icon(Icons.edit_rounded), tooltip: 'Renombrar', onPressed: _rename),
-          PopupMenuButton<String>(
-            onSelected: (a) => a == 'move' ? _move() : _delete(),
-            itemBuilder: (_) => [
-              const PopupMenuItem(
-                  value: 'move',
-                  child: ListTile(leading: Icon(Icons.drive_file_move_rounded), title: Text('Mover'))),
-              PopupMenuItem(
-                  value: 'delete',
-                  child: ListTile(
-                      leading: Icon(Icons.delete_rounded, color: cs.error),
-                      title: Text('Eliminar', style: TextStyle(color: cs.error)))),
-            ],
-          ),
-        ],
-      ),
-      body: _book(),
-      bottomNavigationBar: Material(
-        color: cs.surfaceContainer,
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              children: [
-                FilledButton.tonalIcon(
-                  onPressed: _i > 0 ? () => _go(-1) : null,
-                  icon: const Icon(Icons.chevron_left_rounded),
-                  label: const Text('Anterior'),
+            // Barra superior propia: siempre visible, aunque el visor falle.
+            Material(
+              color: cs.surfaceContainer,
+              child: SizedBox(
+                height: 64,
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      onPressed: () => Navigator.maybePop(context),
+                    ),
+                    Expanded(
+                      child: InkWell(
+                        onTap: _rename,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(p.basenameWithoutExtension(_path),
+                                maxLines: 1, overflow: TextOverflow.ellipsis, style: tt.titleMedium),
+                            Text('${_i + 1} de ${_paths.length} · ${_ext.isEmpty ? '' : _ext.substring(1).toUpperCase()}',
+                                style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (_ext != '.pdf')
+                      IconButton(icon: const Icon(Icons.text_fields_rounded), tooltip: 'Texto', onPressed: _fontSheet),
+                    IconButton(icon: const Icon(Icons.edit_rounded), tooltip: 'Renombrar', onPressed: _rename),
+                    PopupMenuButton<String>(
+                      onSelected: (a) => a == 'move' ? _move() : _delete(),
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(
+                            value: 'move',
+                            child: ListTile(leading: Icon(Icons.drive_file_move_rounded), title: Text('Mover'))),
+                        PopupMenuItem(
+                            value: 'delete',
+                            child: ListTile(
+                                leading: Icon(Icons.delete_rounded, color: cs.error),
+                                title: Text('Eliminar', style: TextStyle(color: cs.error)))),
+                      ],
+                    ),
+                  ],
                 ),
-                Expanded(
-                  child: Center(
-                    child: Text('${_i + 1} / ${_paths.length}',
-                        style: Theme.of(context).textTheme.labelLarge),
-                  ),
-                ),
-                FilledButton.tonal(
-                  onPressed: _i < _paths.length - 1 ? () => _go(1) : null,
-                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                    Text('Siguiente'),
-                    SizedBox(width: 4),
-                    Icon(Icons.chevron_right_rounded),
-                  ]),
-                ),
-              ],
+              ),
             ),
-          ),
+            Expanded(child: ClipRect(child: _book())),
+            Material(
+              color: cs.surfaceContainer,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  children: [
+                    FilledButton.tonalIcon(
+                      onPressed: _i > 0 ? () => _go(-1) : null,
+                      icon: const Icon(Icons.chevron_left_rounded),
+                      label: const Text('Anterior'),
+                    ),
+                    Expanded(
+                      child: Center(
+                        child: TextButton.icon(
+                          onPressed: _rename,
+                          icon: const Icon(Icons.edit_rounded, size: 18),
+                          label: Text('${_i + 1} / ${_paths.length}'),
+                        ),
+                      ),
+                    ),
+                    FilledButton.tonal(
+                      onPressed: _i < _paths.length - 1 ? () => _go(1) : null,
+                      child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text('Siguiente'),
+                        SizedBox(width: 4),
+                        Icon(Icons.chevron_right_rounded),
+                      ]),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

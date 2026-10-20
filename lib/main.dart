@@ -1,9 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:pdfrx/pdfrx.dart';
 
 import 'screens/browser_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  pdfrxFlutterInitialize();
+  // Muestra el error en pantalla en vez de dejar un hueco en blanco.
+  ErrorWidget.builder = (details) => Material(
+        color: const Color(0xFF2B1B1B),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: SingleChildScrollView(
+              child: Text(
+                details.exceptionAsString(),
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ),
+          ),
+        ),
+      );
   runApp(const BookManagerApp());
 }
 
