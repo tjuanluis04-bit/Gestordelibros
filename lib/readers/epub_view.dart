@@ -1,8 +1,72 @@
+import 'dart:convert';
 import 'dart:io';
 
-import 'package:epubx/epubx.dart';
+import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
+import 'package:path/path.dart' as p;
+import 'package:xml/xml.dart';
+
+Iterable<XmlElement> _els(XmlNode n, String local) =>
+    n.descendants.whereType<XmlElement>().where((e) => e.name.local == local);
+
+String _text(ArchiveFile f) => utf8.decode(f.content as List<int>, allowMalformed: true);
+
+/// Devuelve el HTML de cada capítulo en orden de lectura (spine).
+List<String> _parseEpub(List<int> bytes) {
+  final archive = ZipDecoder().decodeBytes(bytes);
+
+  ArchiveFile? find(String name) {
+    final exact = archive.findFile(name);
+    if (exact != null) return exact;
+    final lower = name.toLowerCase();
+    for (final f in archive.files) {
+      if (f.name.toLowerCase() == lower) return f;
+    }
+    return null;
+  }
+
+  final container = find('META-INF/container.xml');
+  if (container == null) throw const FormatException('EPUB no válido');
+  final rootPath = _els(XmlDocument.parse(_text(container)), 'rootfile')
+      .map((e) => e.getAttribute('full-path'))
+      .firstWhere((v) => v != null, orElse: () => null);
+  if (rootPath == null) throw const FormatException('EPUB sin OPF');
+  final opfFile = find(rootPath);
+  if (opfFile == null) throw const FormatException('EPUB sin OPF');
+
+  final opf = XmlDocument.parse(_text(opfFile));
+  final opfDir = p.posix.dirname(rootPath);
+
+  final hrefById = <String, String>{};
+  for (final item in _els(opf, 'item')) {
+    final id = item.getAttribute('id');
+    final href = item.getAttribute('href');
+    if (id != null && href != null) hrefById[id] = href;
+  }
+
+  final out = <String>[];
+  void addHref(String href) {
+    final clean = Uri.decodeFull(href.split('#').first);
+    final full = p.posix.normalize(opfDir == '.' ? clean : p.posix.join(opfDir, clean));
+    final f = find(full);
+    if (f == null) return;
+    final t = _text(f);
+    if (t.trim().isNotEmpty) out.add(t);
+  }
+
+  for (final ref in _els(opf, 'itemref')) {
+    final href = hrefById[ref.getAttribute('idref')];
+    if (href != null) addHref(href);
+  }
+  if (out.isEmpty) {
+    for (final href in hrefById.values) {
+      final l = href.toLowerCase();
+      if (l.endsWith('.xhtml') || l.endsWith('.html') || l.endsWith('.htm')) addHref(href);
+    }
+  }
+  return out;
+}
 
 class EpubBookView extends StatefulWidget {
   final String path;
@@ -14,32 +78,8 @@ class EpubBookView extends StatefulWidget {
 }
 
 class _EpubBookViewState extends State<EpubBookView> {
-  late final Future<List<String>> _future = _load();
-
-  Future<List<String>> _load() async {
-    final bytes = await File(widget.path).readAsBytes();
-    final book = await EpubReader.readBook(bytes);
-    final out = <String>[];
-    final html = book.Content?.Html ?? {};
-    final manifest = book.Schema?.Package?.Manifest?.Items ?? [];
-    final spine = book.Schema?.Package?.Spine?.Items ?? [];
-    for (final ref in spine) {
-      for (final m in manifest) {
-        if (m.Id == ref.IdRef) {
-          final c = html[m.Href]?.Content;
-          if (c != null && c.trim().isNotEmpty) out.add(c);
-          break;
-        }
-      }
-    }
-    if (out.isEmpty) {
-      for (final f in html.values) {
-        final c = f.Content;
-        if (c != null && c.trim().isNotEmpty) out.add(c);
-      }
-    }
-    return out;
-  }
+  late final Future<List<String>> _future =
+      File(widget.path).readAsBytes().then(_parseEpub);
 
   @override
   Widget build(BuildContext context) {
