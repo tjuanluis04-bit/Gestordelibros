@@ -5,6 +5,8 @@ import 'package:archive/archive.dart';
 import 'package:flutter/material.dart';
 import 'package:xml/xml.dart';
 
+import '../services/archive_util.dart';
+
 class _Run {
   final String text;
   final bool bold;
@@ -29,7 +31,7 @@ List<_Para> _parseDocx(List<int> bytes) {
   final archive = ZipDecoder().decodeBytes(bytes);
   final f = archive.findFile('word/document.xml');
   if (f == null) throw const FormatException('DOCX no válido');
-  final doc = XmlDocument.parse(utf8.decode(f.content as List<int>, allowMalformed: true));
+  final doc = XmlDocument.parse(utf8.decode(archiveBytes(f), allowMalformed: true));
   final paras = <_Para>[];
   for (final para in doc.findAllElements('w:p')) {
     final pPr = para.getElement('w:pPr');

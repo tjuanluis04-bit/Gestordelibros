@@ -14,6 +14,7 @@ class Entry {
   final String name;
   final int size;
   final DateTime modified;
+  int bookCount = 0;
 
   Entry(this.entity, this.isDir, this.name, this.size, this.modified);
 
@@ -66,6 +67,9 @@ class FileOps {
       final st = await e.stat();
       out.add(Entry(e, isDir, name, st.size, st.modified));
     }
+    await Future.wait(out.where((e) => e.isDir).map((d) async {
+      d.bookCount = await countBooks(d.path);
+    }));
     out.sort((a, b) {
       if (a.isDir != b.isDir) return a.isDir ? -1 : 1;
       switch (sort) {
@@ -78,6 +82,35 @@ class FileOps {
       }
     });
     return out;
+  }
+
+  static Future<int> countBooks(String dir) async {
+    var n = 0;
+    try {
+      await for (final e in Directory(dir).list(followLinks: false)) {
+        final name = p.basename(e.path);
+        if (e is File && !name.startsWith('.') && bookExtensions.contains(p.extension(name).toLowerCase())) n++;
+      }
+    } catch (_) {}
+    return n;
+  }
+
+  static Future<bool> hasSubdirs(String dir) async {
+    try {
+      await for (final e in Directory(dir).list(followLinks: false)) {
+        if (e is Directory && !p.basename(e.path).startsWith('.')) return true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  static Future<List<Directory>> subdirs(String dir) async {
+    final r = <Directory>[];
+    await for (final e in Directory(dir).list(followLinks: false)) {
+      if (e is Directory && !p.basename(e.path).startsWith('.')) r.add(e);
+    }
+    r.sort((a, b) => naturalCompare(p.basename(a.path), p.basename(b.path)));
+    return r;
   }
 
   static String? validateName(String n) {

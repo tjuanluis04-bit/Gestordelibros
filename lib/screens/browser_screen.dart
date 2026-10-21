@@ -351,6 +351,49 @@ class _EntryTile extends StatelessWidget {
   final void Function(String) onAction;
   const _EntryTile({required this.entry, required this.onTap, required this.onAction});
 
+  Widget _folderLeading(ColorScheme cs) {
+    final has = entry.bookCount > 0;
+    final color = has ? cs.primary : cs.outline;
+    return SizedBox(
+      width: 46,
+      height: 46,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: color.withAlpha(has ? 44 : 24),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(has ? Icons.folder_rounded : Icons.folder_outlined, color: color),
+          ),
+          if (has)
+            Positioned(
+              right: -6,
+              top: -6,
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                padding: const EdgeInsets.symmetric(horizontal: 5),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: cs.tertiary,
+                  borderRadius: BorderRadius.circular(11),
+                  border: Border.all(color: cs.surfaceContainerLow, width: 2),
+                ),
+                child: Text(
+                  entry.bookCount > 99 ? '99+' : '${entry.bookCount}',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: cs.onTertiary),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -367,21 +410,21 @@ class _EntryTile extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
             child: Row(
               children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: color.withAlpha(36),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: entry.isDir
-                      ? Icon(Icons.folder_rounded, color: color)
-                      : Text(
+                entry.isDir
+                    ? _folderLeading(cs)
+                    : Container(
+                        width: 46,
+                        height: 46,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: color.withAlpha(36),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Text(
                           entry.ext.substring(1).toUpperCase(),
                           style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 11),
                         ),
-                ),
+                      ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -393,7 +436,7 @@ class _EntryTile extends StatelessWidget {
                           style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
                       const SizedBox(height: 2),
                       Text(
-                        entry.isDir ? 'Carpeta' : '${formatSize(entry.size)} · ${formatDate(entry.modified)}',
+                        entry.isDir ? (entry.bookCount > 0 ? '${entry.bookCount} ${entry.bookCount == 1 ? 'libro' : 'libros'}' : 'Sin libros') : '${formatSize(entry.size)} · ${formatDate(entry.modified)}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                       ),
                     ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 
@@ -41,18 +42,31 @@ class _ReaderScreenState extends State<ReaderScreen> {
     });
   }
 
-  Future<void> _rename() async {
-    final np = await renameBook(context, _path);
-    if (np != null && mounted) setState(() => _paths[_i] = np);
+  bool _busy = false;
+
+  Future<void> _guard(Future<void> Function() task) async {
+    if (_busy) return;
+    HapticFeedback.selectionClick();
+    setState(() => _busy = true);
+    try {
+      await task();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
-  Future<void> _move() async {
-    if (await moveBook(context, _path) != null && mounted) _removeCurrent();
-  }
+  Future<void> _rename() => _guard(() async {
+        final np = await renameBook(context, _path);
+        if (np != null && mounted) setState(() => _paths[_i] = np);
+      });
 
-  Future<void> _delete() async {
-    if (await deleteBook(context, _path) && mounted) _removeCurrent();
-  }
+  Future<void> _move() => _guard(() async {
+        if (await moveBook(context, _path) != null && mounted) _removeCurrent();
+      });
+
+  Future<void> _delete() => _guard(() async {
+        if (await deleteBook(context, _path) && mounted) _removeCurrent();
+      });
 
   void _fontSheet() {
     showModalBottomSheet(
@@ -95,7 +109,11 @@ class _ReaderScreenState extends State<ReaderScreen> {
     final key = ValueKey(_path);
     switch (_ext) {
       case '.pdf':
-        return PdfViewer.file(_path, key: key);
+        return PdfViewer.file(
+          _path,
+          key: key,
+          params: PdfViewerParams(interactionEndFrictionCoefficient: 0.01),
+        );
       case '.epub':
         return EpubBookView(key: key, path: _path, fontSize: _font);
       case '.docx':
@@ -142,7 +160,11 @@ class _ReaderScreenState extends State<ReaderScreen> {
                     ),
                     if (_ext != '.pdf')
                       IconButton(icon: const Icon(Icons.text_fields_rounded), tooltip: 'Texto', onPressed: _fontSheet),
-                    IconButton(icon: const Icon(Icons.edit_rounded), tooltip: 'Renombrar', onPressed: _rename),
+                    IconButton.filledTonal(
+                      icon: const Icon(Icons.edit_rounded),
+                      tooltip: 'Renombrar',
+                      onPressed: _busy ? null : _rename,
+                    ),
                     PopupMenuButton<String>(
                       onSelected: (a) => a == 'move' ? _move() : _delete(),
                       itemBuilder: (_) => [

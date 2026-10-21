@@ -29,6 +29,9 @@ jobs:
       - name: Parchear AndroidManifest
         run: python3 tool/patch_manifest.py
 
+      - name: Instalar icono de la app
+        run: cp -r tool/android_res/. android/app/src/main/res/
+
       - name: Dependencias
         run: flutter pub get
 
